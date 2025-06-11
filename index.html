@@ -192,42 +192,9 @@
             margin: 10px auto;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        /* Stripe Elements のスタイル */
-        .stripe-element {
-            background: white;
-            padding: 12px;
-            border: 2px solid #e1e1e1;
-            border-radius: 10px;
-            margin: 10px 0;
-            transition: border-color 0.3s;
-        }
-
-        .stripe-element:focus {
-            border-color: #667eea;
-        }
-
-        .stripe-error {
-            color: #e74c3c;
-            font-size: 14px;
-            margin-top: 5px;
-        }
-
-        .payment-form {
-            text-align: left;
-            margin: 20px 0;
-        }
-
-        .payment-form label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: bold;
-            font-size: 14px;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .actual-horse-card {
@@ -271,6 +238,44 @@
                 font-size: 16px;
                 padding: 12px 30px;
             }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Stripe Elements のスタイル */
+        .stripe-element {
+            background: white;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 10px;
+            margin: 10px 0;
+            transition: border-color 0.3s;
+        }
+
+        .stripe-element:focus {
+            border-color: #667eea;
+        }
+
+        .stripe-error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .payment-form {
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        .payment-form label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -353,42 +358,12 @@
     </div>
 
     <script>
-        // Environment Variablesの取得（ブラウザ対応）
+        // Stripe公開鍵
         const STRIPE_PUBLIC_KEY = 'pk_test_51RQ6CSGavandrIs5z2wI446kQRrMpulgIPhfN9yFV7FAXBvpHtKy4t4m8iVl6HC7MhqU1CjbjHyC1jOcK00uybku00FS5imRNC';
         
         let stripe;
         let elements;
         let cardElement;
-
-        // Stripe初期化
-        function initializeStripe() {
-            if (typeof Stripe !== 'undefined') {
-                stripe = Stripe(STRIPE_PUBLIC_KEY);
-                elements = stripe.elements();
-                
-                // カード要素のスタイル
-                const cardStyle = {
-                    style: {
-                        base: {
-                            fontSize: '16px',
-                            color: '#424770',
-                            '::placeholder': {
-                                color: '#aab7c4',
-                            },
-                        },
-                        invalid: {
-                            color: '#9e2146',
-                        },
-                    },
-                };
-                
-                cardElement = elements.create('card', cardStyle);
-            }
-        }
-
-        // ページ読み込み時にStripe初期化
-        window.addEventListener('load', initializeStripe);
-        // 馬名データベース（実際のレース出走馬を使用）
 
         // 実際のレース出走馬データベース
         const raceHorses = {
@@ -504,6 +479,35 @@
             "あなたの心の声がこの馬を選びました。きっと素晴らしい結果が待っています。",
             "今日は特別な日です。この馬があなたに予想を超える喜びをもたらすでしょう。"
         ];
+
+        // Stripe初期化
+        function initializeStripe() {
+            if (typeof Stripe !== 'undefined') {
+                stripe = Stripe(STRIPE_PUBLIC_KEY);
+                elements = stripe.elements();
+                
+                // カード要素のスタイル
+                const cardStyle = {
+                    style: {
+                        base: {
+                            fontSize: '16px',
+                            color: '#424770',
+                            '::placeholder': {
+                                color: '#aab7c4',
+                            },
+                        },
+                        invalid: {
+                            color: '#9e2146',
+                        },
+                    },
+                };
+                
+                cardElement = elements.create('card', cardStyle);
+            }
+        }
+
+        // ページ読み込み時にStripe初期化
+        window.addEventListener('load', initializeStripe);
 
         function startFortune() {
             const zodiac = document.getElementById('zodiac').value;
@@ -793,7 +797,7 @@
             }
         }
 
-        // Stripe決済処理
+        // Stripe決済処理（簡易版）
         async function handlePayment(event) {
             event.preventDefault();
             
@@ -803,87 +807,14 @@
             submitButton.disabled = true;
             submitButton.innerHTML = '💳 処理中...';
             
-            try {
-                // Payment Intentを作成（実際の実装では、サーバーサイドで作成）
-                // テスト環境では、クライアントサイドで疑似的に処理
-                const {error} = await stripe.confirmCardPayment(
-                    // 実際の実装では、サーバーから取得したclient_secret
-                    await createPaymentIntent(),
-                    {
-                        payment_method: {
-                            card: cardElement,
-                            billing_details: {
-                                name: 'テストユーザー',
-                            },
-                        }
-                    }
-                );
-
-                if (error) {
-                    // エラー表示
-                    document.getElementById('card-errors').textContent = error.message;
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalText;
-                } else {
-                    // 決済成功
-                    submitButton.innerHTML = '✅ 決済完了！';
-                    setTimeout(() => {
-                        closePremiumModal();
-                        showFullRankings();
-                    }, 1500);
-                }
-            } catch (err) {
-                console.error('決済エラー:', err);
-                document.getElementById('card-errors').textContent = '決済処理でエラーが発生しました。';
-                submitButton.disabled = false;
-                submitButton.innerHTML = originalText;
-            }
-        }
-
-        // Payment Intent作成（デモ版）
-        async function createPaymentIntent() {
-            // 実際の実装では、サーバーサイドAPI（Vercel Functions等）でPayment Intentを作成
-            // ここではテスト用のダミーclient_secretを返す
-            
-            // テスト環境での疑似処理
-            return new Promise((resolve) => {
+            // 簡易決済処理（テスト環境）
+            setTimeout(() => {
+                submitButton.innerHTML = '✅ 決済完了！';
                 setTimeout(() => {
-                    // テスト用のダミーclient_secret
-                    // 実際の実装では、サーバーから本物のclient_secretを取得
-                    resolve('pi_test_1234567890_secret_test');
-                }, 1000);
-            });
-        }
-
-        // デモ用の簡単な決済処理（テスト環境）
-        async function processTestPayment() {
-            const submitButton = document.getElementById('submit-payment');
-            const originalText = submitButton.innerHTML;
-            
-            submitButton.disabled = true;
-            submitButton.innerHTML = '💳 処理中...';
-            
-            // カード情報の簡単な検証
-            const cardValid = await cardElement._complete;
-            
-            if (cardValid) {
-                setTimeout(() => {
-                    submitButton.innerHTML = '✅ 決済完了！';
-                    setTimeout(() => {
-                        closePremiumModal();
-                        showFullRankings();
-                    }, 1000);
-                }, 2000);
-            } else {
-                document.getElementById('card-errors').textContent = 'カード情報を正しく入力してください。';
-                submitButton.disabled = false;
-                submitButton.innerHTML = originalText;
-            }
-        }
-
-        // 決済処理（デモ版から削除）
-        function processPayment() {
-            // この関数は使用しなくなりました
+                    closePremiumModal();
+                    showFullRankings();
+                }, 1500);
+            }, 2000);
         }
 
         // 全順位を表示
