@@ -1,0 +1,12 @@
+{
+  "name": "horse-racing-fortune",
+  "version": "1.0.0",
+  "description": "競馬の本命馬を占うWebアプリケーション",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build required'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "競馬",
