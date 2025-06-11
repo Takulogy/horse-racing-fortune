@@ -255,8 +255,13 @@
             transition: border-color 0.3s;
         }
 
-        .stripe-element:focus {
+        .stripe-element.StripeElement--focus {
             border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .stripe-element.StripeElement--invalid {
+            border-color: #e74c3c;
         }
 
         .stripe-error {
@@ -928,7 +933,7 @@
                             </div>
                             <div id="card-errors" class="stripe-error" role="alert"></div>
                             
-                            <button type="button" onclick="processTestPayment()" id="submit-payment" style="
+                            <button type="button" onclick="handlePayment()" id="submit-payment" style="
                                 background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
                                 color: white;
                                 border: none;
@@ -947,8 +952,7 @@
                         </div>
                         
                         <p style="color: #999; font-size: 12px;">
-                            🔒 SSL暗号化通信で安全に決済されます<br>
-                            
+                            🔒 SSL暗号化通信で安全に決済されます
                         </p>
                     </div>
                 `;
@@ -961,38 +965,23 @@
             // Stripe Elementsをマウント
             setTimeout(() => {
                 if (cardElement && document.getElementById('card-element')) {
-                    cardElement.mount('#card-element');
-                    
-                    // エラーハンドリング
-                    cardElement.on('change', ({error}) => {
-                        const displayError = document.getElementById('card-errors');
-                        if (error) {
-                            displayError.textContent = error.message;
-                        } else {
-                            displayError.textContent = '';
-                        }
-                    });
+                    try {
+                        cardElement.mount('#card-element');
+                        
+                        // エラーハンドリング
+                        cardElement.on('change', ({error}) => {
+                            const displayError = document.getElementById('card-errors');
+                            if (error) {
+                                displayError.textContent = error.message;
+                            } else {
+                                displayError.textContent = '';
+                            }
+                        });
+                    } catch (e) {
+                        console.error('Card element mount error:', e);
+                    }
                 }
             }, 100);
-        }
-
-        // 本番環境用決済処理
-        function processTestPayment() {
-            const submitButton = document.getElementById('submit-payment');
-            const originalText = submitButton.innerHTML;
-            
-            submitButton.disabled = true;
-            submitButton.innerHTML = '💳 処理中...';
-            
-            // 本番環境では実際のStripe決済を実行
-            // 現在はテスト環境として簡易処理
-            setTimeout(() => {
-                submitButton.innerHTML = '✅ 決済完了！';
-                setTimeout(() => {
-                    closePremiumModal();
-                    showFullRankings();
-                }, 1000);
-            }, 2000);
         }
 
         function closePremiumModal() {
@@ -1000,42 +989,63 @@
             if (modal) {
                 // Stripe Elementsをアンマウント
                 if (cardElement) {
-                    cardElement.unmount();
+                    try {
+                        cardElement.unmount();
+                    } catch (e) {
+                        console.error('Card element unmount error:', e);
+                    }
                 }
                 modal.style.display = 'none';
             }
         }
 
-        // Stripe決済処理（テスト用簡易版）
-        async function handlePayment(event) {
-            event.preventDefault();
-            
+        // Stripe決済処理（実際のカード情報を使用）
+        async function handlePayment() {
+            if (!stripe || !cardElement) {
+                console.error('Stripe not initialized');
+                return;
+            }
+
             const submitButton = document.getElementById('submit-payment');
             const originalText = submitButton.innerHTML;
             
             submitButton.disabled = true;
             submitButton.innerHTML = '💳 処理中...';
-            
-            // カード情報の基本チェック
-            const cardNumber = document.querySelector('#card-element input[name="cardnumber"]');
-            
-            // テスト環境での簡易処理
-            setTimeout(() => {
-                // テストカード番号の確認
-                const isTestCard = true; // 簡単にテスト通過
+
+            try {
+                // カード情報の検証
+                const {error, paymentMethod} = await stripe.createPaymentMethod({
+                    type: 'card',
+                    card: cardElement,
+                });
+
+                if (error) {
+                    // エラー表示
+                    document.getElementById('card-errors').textContent = error.message;
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalText;
+                    return;
+                }
+
+                // 本番環境では、ここでサーバーに決済処理を送信
+                // 現在はテスト環境として決済成功をシミュレート
+                console.log('Payment method created:', paymentMethod);
                 
-                if (isTestCard) {
+                // 決済成功のシミュレート
+                setTimeout(() => {
                     submitButton.innerHTML = '✅ 決済完了！';
                     setTimeout(() => {
                         closePremiumModal();
                         showFullRankings();
-                    }, 1500);
-                } else {
-                    document.getElementById('card-errors').textContent = '';
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalText;
-                }
-            }, 2000);
+                    }, 1000);
+                }, 1500);
+
+            } catch (err) {
+                console.error('Payment error:', err);
+                document.getElementById('card-errors').textContent = '決済処理中にエラーが発生しました。';
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
         }
 
         // 全順位を表示
