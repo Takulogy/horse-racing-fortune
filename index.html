@@ -318,14 +318,7 @@
     </div>
 
     <script>
-        // 馬名データベース（占い用のファンタジー馬名）
-        const horseNames = [
-            "サンダーボルト", "ゴールデンウィング", "ファイアーストーム", "スピードスター",
-            "ミラクルランナー", "ブラックダイヤモンド", "シルバーアロー", "クリムゾンフレーム",
-            "エメラルドキング", "サファイアプリンス", "ルビーエンジェル", "アメジストクイーン",
-            "ダイヤモンドフラッシュ", "プラチナムレイン", "ゴールドラッシュ", "スターライト",
-            "ムーンビーム", "サンライズ"
-        ];
+        // 馬名データベース（実際のレース出走馬を使用）
 
         // 実際のレース出走馬データベース
         const raceHorses = {
@@ -489,55 +482,68 @@
 
             seed = (zodiacValues[zodiac] * bloodTypeValues[bloodType] + raceValues[targetRace] + luckyNumber) % 18 + 1;
             
-            const horseNumber = seed;
-            const horseName = horseNames[seed - 1];
+            // 選択されたレースの出走馬から本命を選択
+            const raceHorsesList = raceHorses[targetRace] || [];
+            const horseIndex = (seed - 1) % raceHorsesList.length;
+            const horseName = raceHorsesList[horseIndex];
             
-            // 実際のレース馬をランダムで選択
-            const actualRaceHorses = raceHorses[targetRace] || [];
-            const actualHorse = actualRaceHorses.length > 0 ? 
-                actualRaceHorses[Math.floor(Math.random() * actualRaceHorses.length)] : null;
+            // 他の順位の馬をランダムで選択（本命以外から）
+            const otherHorses = raceHorsesList.filter((_, index) => index !== horseIndex);
+            const shuffledHorses = [...otherHorses].sort(() => Math.random() - 0.5);
+            
+            const rankings = {
+                first: horseName,
+                second: shuffledHorses[0] || '未定',
+                third: shuffledHorses[1] || '未定',
+                fourth: shuffledHorses[2] || '未定',
+                fifth: shuffledHorses[3] || '未定'
+            };
             
             // 対象レース別のメッセージを取得
             const messages = raceSpecificMessages[targetRace] || defaultMessages;
             const message = messages[Math.floor(Math.random() * messages.length)];
 
             return {
-                number: horseNumber,
+                number: seed,
                 name: horseName,
                 message: message,
                 race: targetRace,
-                actualHorse: actualHorse
+                rankings: rankings
             };
         }
 
         function displayResult(result) {
             document.getElementById('loading').style.display = 'none';
             
-            document.getElementById('horseNumber').textContent = `${result.number}番`;
+            document.getElementById('horseNumber').textContent = `1位（本命）`;
             document.getElementById('horseName').textContent = result.name;
             document.getElementById('fortuneMessage').textContent = result.message;
             
-            // 実際のレース馬を表示する部分
+            // 順位予想を表示する部分
             const actualHorseContainer = document.getElementById('actualHorseContainer');
             actualHorseContainer.innerHTML = ''; // クリア
             
-            if (result.actualHorse) {
-                const actualHorseCard = document.createElement('div');
-                actualHorseCard.className = 'actual-horse-card';
+            if (result.rankings) {
+                const rankingCard = document.createElement('div');
+                rankingCard.className = 'actual-horse-card';
                 
-                actualHorseCard.innerHTML = `
+                rankingCard.innerHTML = `
                     <div class="actual-horse-title">
-                        🏁 実際のレース出走馬
+                        🏆 あなたの予想順位
                     </div>
-                    <div class="actual-horse-name">
-                        ${result.actualHorse}
+                    <div style="text-align: left; line-height: 1.8; font-size: 16px; color: #2d3436;">
+                        <div style="margin: 8px 0;"><strong>🥇 1位（本命）:</strong> <span style="color: #e17055; font-weight: bold;">${result.rankings.first}</span></div>
+                        <div style="margin: 8px 0;"><strong>🥈 2位:</strong> <span style="color: #00b894;">${result.rankings.second}</span></div>
+                        <div style="margin: 8px 0;"><strong>🥉 3位:</strong> <span style="color: #fdcb6e;">${result.rankings.third}</span></div>
+                        <div style="margin: 8px 0;"><strong>📍 4位:</strong> <span style="color: #6c5ce7;">${result.rankings.fourth}</span></div>
+                        <div style="margin: 8px 0;"><strong>📍 5位:</strong> <span style="color: #a29bfe;">${result.rankings.fifth}</span></div>
                     </div>
-                    <div class="actual-horse-message">
-                        選択されたレースからランダムで選ばれた実際の出走馬です
+                    <div class="actual-horse-message" style="margin-top: 15px;">
+                        星座と血液型の組み合わせから導き出されたあなただけの予想です
                     </div>
                 `;
                 
-                actualHorseContainer.appendChild(actualHorseCard);
+                actualHorseContainer.appendChild(rankingCard);
             }
             
             document.getElementById('result').style.display = 'block';
