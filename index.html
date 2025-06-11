@@ -353,10 +353,8 @@
     </div>
 
     <script>
-        // Stripe初期化（Environment Variablesから公開鍵を取得）
-        const STRIPE_PUBLIC_KEY = window.location.hostname === 'localhost' 
-            ? 'pk_test_51RQ6CSGavandrIs5z2wI446kQRrMpulgIPhfN9yFV7FAXBvpHtKy4t4m8iVl6HC7MhqU1CjbjHyC1jOcK00uybku00FS5imRNC'
-            : process.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51RQ6CSGavandrIs5z2wI446kQRrMpulgIPhfN9yFV7FAXBvpHtKy4t4m8iVl6HC7MhqU1CjbjHyC1jOcK00uybku00FS5imRNC';
+        // Environment Variablesの取得（ブラウザ対応）
+        const STRIPE_PUBLIC_KEY = 'pk_test_51RQ6CSGavandrIs5z2wI446kQRrMpulgIPhfN9yFV7FAXBvpHtKy4t4m8iVl6HC7MhqU1CjbjHyC1jOcK00uybku00FS5imRNC';
         
         let stripe;
         let elements;
