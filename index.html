@@ -9,6 +9,8 @@
     <meta property="og:description" content="星座と血液型で運命の本命馬を占います">
     <meta property="og:type" content="website">
     <title>🏇 競馬占い - あなたの本命馬を見つけよう！</title>
+    <!-- Stripe JavaScript SDK -->
+    <script src="https://js.stripe.com/v3/"></script>
     <style>
         * {
             margin: 0;
@@ -190,9 +192,42 @@
             margin: 10px auto;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Stripe Elements のスタイル */
+        .stripe-element {
+            background: white;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 10px;
+            margin: 10px 0;
+            transition: border-color 0.3s;
+        }
+
+        .stripe-element:focus {
+            border-color: #667eea;
+        }
+
+        .stripe-error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .payment-form {
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        .payment-form label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+            font-size: 14px;
         }
 
         .actual-horse-card {
@@ -318,6 +353,43 @@
     </div>
 
     <script>
+        // Stripe初期化（Environment Variablesから公開鍵を取得）
+        const STRIPE_PUBLIC_KEY = window.location.hostname === 'localhost' 
+            ? 'pk_test_51RQ6CSGavandrIs5z2wI446kQRrMpulgIPhfN9yFV7FAXBvpHtKy4t4m8iVl6HC7MhqU1CjbjHyC1jOcK00uybku00FS5imRNC'
+            : process.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51RQ6CSGavandrIs5z2wI446kQRrMpulgIPhfN9yFV7FAXBvpHtKy4t4m8iVl6HC7MhqU1CjbjHyC1jOcK00uybku00FS5imRNC';
+        
+        let stripe;
+        let elements;
+        let cardElement;
+
+        // Stripe初期化
+        function initializeStripe() {
+            if (typeof Stripe !== 'undefined') {
+                stripe = Stripe(STRIPE_PUBLIC_KEY);
+                elements = stripe.elements();
+                
+                // カード要素のスタイル
+                const cardStyle = {
+                    style: {
+                        base: {
+                            fontSize: '16px',
+                            color: '#424770',
+                            '::placeholder': {
+                                color: '#aab7c4',
+                            },
+                        },
+                        invalid: {
+                            color: '#9e2146',
+                        },
+                    },
+                };
+                
+                cardElement = elements.create('card', cardStyle);
+            }
+        }
+
+        // ページ読み込み時にStripe初期化
+        window.addEventListener('load', initializeStripe);
         // 馬名データベース（実際のレース出走馬を使用）
 
         // 実際のレース出走馬データベース
@@ -519,7 +591,7 @@
             document.getElementById('horseName').textContent = result.name;
             document.getElementById('fortuneMessage').textContent = result.message;
             
-            // 順位予想を表示する部分
+            // 順位予想を表示する部分（1位のみ表示、2-5位は隠す）
             const actualHorseContainer = document.getElementById('actualHorseContainer');
             actualHorseContainer.innerHTML = ''; // クリア
             
@@ -533,18 +605,44 @@
                     </div>
                     <div style="text-align: left; line-height: 1.8; font-size: 16px; color: #2d3436;">
                         <div style="margin: 8px 0;"><strong>🥇 1位（本命）:</strong> <span style="color: #e17055; font-weight: bold;">${result.rankings.first}</span></div>
-                        <div style="margin: 8px 0;"><strong>🥈 2位:</strong> <span style="color: #00b894;">${result.rankings.second}</span></div>
-                        <div style="margin: 8px 0;"><strong>🥉 3位:</strong> <span style="color: #fdcb6e;">${result.rankings.third}</span></div>
-                        <div style="margin: 8px 0;"><strong>📍 4位:</strong> <span style="color: #6c5ce7;">${result.rankings.fourth}</span></div>
-                        <div style="margin: 8px 0;"><strong>📍 5位:</strong> <span style="color: #a29bfe;">${result.rankings.fifth}</span></div>
+                        <div style="margin: 8px 0; opacity: 0.5;"><strong>🥈 2位:</strong> <span style="color: #666;">○○○○○○</span></div>
+                        <div style="margin: 8px 0; opacity: 0.5;"><strong>🥉 3位:</strong> <span style="color: #666;">○○○○○○</span></div>
+                        <div style="margin: 8px 0; opacity: 0.5;"><strong>📍 4位:</strong> <span style="color: #666;">○○○○○○</span></div>
+                        <div style="margin: 8px 0; opacity: 0.5;"><strong>📍 5位:</strong> <span style="color: #666;">○○○○○○</span></div>
                     </div>
                     <div class="actual-horse-message" style="margin-top: 15px;">
-                        星座と血液型の組み合わせから導き出されたあなただけの予想です
+                        1位の本命馬はあなたの運命が選んだ特別な馬です
                     </div>
                 `;
                 
                 actualHorseContainer.appendChild(rankingCard);
+                
+                // 有料コンテンツボタンを追加
+                const premiumCard = document.createElement('div');
+                premiumCard.style.marginTop = '20px';
+                premiumCard.innerHTML = `
+                    <button onclick="showPremiumModal()" style="
+                        background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+                        color: white;
+                        border: none;
+                        padding: 12px 30px;
+                        border-radius: 25px;
+                        font-size: 16px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        transition: transform 0.3s;
+                        box-shadow: 0 5px 15px rgba(232, 67, 147, 0.3);
+                    " onmouseover="this.style.transform='translateY(-2px)'" 
+                       onmouseout="this.style.transform='translateY(0)'">
+                        ✨ 2位以下も知りたい！
+                    </button>
+                `;
+                
+                actualHorseContainer.appendChild(premiumCard);
             }
+            
+            // 結果データを保存（決済後に使用）
+            window.currentResult = result;
             
             document.getElementById('result').style.display = 'block';
             document.querySelector('.fortune-btn').disabled = false;
@@ -559,6 +657,272 @@
             document.getElementById('loading').style.display = 'none';
             document.querySelector('.fortune-btn').disabled = false;
             document.getElementById('actualHorseContainer').innerHTML = '';
+            
+            // プレミアムモーダルを閉じる
+            const modal = document.getElementById('premiumModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // プレミアム機能のモーダル表示
+        function showPremiumModal() {
+            // モーダルが存在しない場合は作成
+            let modal = document.getElementById('premiumModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'premiumModal';
+                modal.style.cssText = `
+                    display: none;
+                    position: fixed;
+                    z-index: 1000;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0,0,0,0.8);
+                    animation: fadeIn 0.3s ease-out;
+                `;
+                
+                modal.innerHTML = `
+                    <div style="
+                        background: white;
+                        margin: 5% auto;
+                        padding: 30px;
+                        border-radius: 20px;
+                        width: 90%;
+                        max-width: 500px;
+                        text-align: center;
+                        position: relative;
+                        animation: slideIn 0.3s ease-out;
+                        max-height: 90vh;
+                        overflow-y: auto;
+                    ">
+                        <button onclick="closePremiumModal()" style="
+                            position: absolute;
+                            right: 15px;
+                            top: 15px;
+                            background: none;
+                            border: none;
+                            font-size: 24px;
+                            cursor: pointer;
+                            color: #999;
+                        ">×</button>
+                        
+                        <h2 style="color: #e84393; margin-bottom: 20px;">🌟 プレミアム予想</h2>
+                        <p style="color: #666; margin-bottom: 25px; line-height: 1.6;">
+                            2位〜5位の詳細予想をご覧いただけます<br>
+                            より精度の高い競馬予想をお楽しみください
+                        </p>
+                        
+                        <div style="
+                            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+                            padding: 20px;
+                            border-radius: 15px;
+                            margin: 20px 0;
+                        ">
+                            <div style="font-size: 24px; font-weight: bold; color: #e17055;">¥300</div>
+                            <div style="color: #636e72; font-size: 14px;">一回限りのお支払い</div>
+                        </div>
+                        
+                        <!-- Stripe決済フォーム -->
+                        <form id="payment-form" class="payment-form">
+                            <label for="card-element">クレジットカード情報</label>
+                            <div id="card-element" class="stripe-element">
+                                <!-- Stripe Elements will create form elements here -->
+                            </div>
+                            <div id="card-errors" class="stripe-error" role="alert"></div>
+                            
+                            <button type="submit" id="submit-payment" style="
+                                background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+                                color: white;
+                                border: none;
+                                padding: 15px 40px;
+                                border-radius: 50px;
+                                font-size: 18px;
+                                font-weight: bold;
+                                cursor: pointer;
+                                width: 100%;
+                                margin: 20px 0 15px 0;
+                                transition: transform 0.3s;
+                            " onmouseover="this.style.transform='translateY(-2px)'" 
+                               onmouseout="this.style.transform='translateY(0)'">
+                                💳 ¥300を決済する
+                            </button>
+                        </form>
+                        
+                        <p style="color: #999; font-size: 12px;">
+                            🔒 SSL暗号化通信で安全に決済されます<br>
+                            テスト: 4242 4242 4242 4242
+                        </p>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+            }
+            
+            modal.style.display = 'block';
+            
+            // Stripe Elementsをマウント
+            setTimeout(() => {
+                if (cardElement && document.getElementById('card-element')) {
+                    cardElement.mount('#card-element');
+                    
+                    // エラーハンドリング
+                    cardElement.on('change', ({error}) => {
+                        const displayError = document.getElementById('card-errors');
+                        if (error) {
+                            displayError.textContent = error.message;
+                        } else {
+                            displayError.textContent = '';
+                        }
+                    });
+                    
+                    // フォーム送信処理
+                    document.getElementById('payment-form').addEventListener('submit', handlePayment);
+                }
+            }, 100);
+        }
+
+        function closePremiumModal() {
+            const modal = document.getElementById('premiumModal');
+            if (modal) {
+                // Stripe Elementsをアンマウント
+                if (cardElement) {
+                    cardElement.unmount();
+                }
+                modal.style.display = 'none';
+            }
+        }
+
+        // Stripe決済処理
+        async function handlePayment(event) {
+            event.preventDefault();
+            
+            const submitButton = document.getElementById('submit-payment');
+            const originalText = submitButton.innerHTML;
+            
+            submitButton.disabled = true;
+            submitButton.innerHTML = '💳 処理中...';
+            
+            try {
+                // Payment Intentを作成（実際の実装では、サーバーサイドで作成）
+                // テスト環境では、クライアントサイドで疑似的に処理
+                const {error} = await stripe.confirmCardPayment(
+                    // 実際の実装では、サーバーから取得したclient_secret
+                    await createPaymentIntent(),
+                    {
+                        payment_method: {
+                            card: cardElement,
+                            billing_details: {
+                                name: 'テストユーザー',
+                            },
+                        }
+                    }
+                );
+
+                if (error) {
+                    // エラー表示
+                    document.getElementById('card-errors').textContent = error.message;
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalText;
+                } else {
+                    // 決済成功
+                    submitButton.innerHTML = '✅ 決済完了！';
+                    setTimeout(() => {
+                        closePremiumModal();
+                        showFullRankings();
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error('決済エラー:', err);
+                document.getElementById('card-errors').textContent = '決済処理でエラーが発生しました。';
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
+        }
+
+        // Payment Intent作成（デモ版）
+        async function createPaymentIntent() {
+            // 実際の実装では、サーバーサイドAPI（Vercel Functions等）でPayment Intentを作成
+            // ここではテスト用のダミーclient_secretを返す
+            
+            // テスト環境での疑似処理
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    // テスト用のダミーclient_secret
+                    // 実際の実装では、サーバーから本物のclient_secretを取得
+                    resolve('pi_test_1234567890_secret_test');
+                }, 1000);
+            });
+        }
+
+        // デモ用の簡単な決済処理（テスト環境）
+        async function processTestPayment() {
+            const submitButton = document.getElementById('submit-payment');
+            const originalText = submitButton.innerHTML;
+            
+            submitButton.disabled = true;
+            submitButton.innerHTML = '💳 処理中...';
+            
+            // カード情報の簡単な検証
+            const cardValid = await cardElement._complete;
+            
+            if (cardValid) {
+                setTimeout(() => {
+                    submitButton.innerHTML = '✅ 決済完了！';
+                    setTimeout(() => {
+                        closePremiumModal();
+                        showFullRankings();
+                    }, 1000);
+                }, 2000);
+            } else {
+                document.getElementById('card-errors').textContent = 'カード情報を正しく入力してください。';
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
+        }
+
+        // 決済処理（デモ版から削除）
+        function processPayment() {
+            // この関数は使用しなくなりました
+        }
+
+        // 全順位を表示
+        function showFullRankings() {
+            const result = window.currentResult;
+            if (!result || !result.rankings) return;
+            
+            const actualHorseContainer = document.getElementById('actualHorseContainer');
+            
+            // 新しい完全版ランキングカードを作成
+            const fullRankingCard = document.createElement('div');
+            fullRankingCard.className = 'actual-horse-card';
+            fullRankingCard.style.background = 'linear-gradient(135deg, #a8e6cf 0%, #88d8a3 100%)';
+            fullRankingCard.style.animation = 'slideIn 0.5s ease-out';
+            
+            fullRankingCard.innerHTML = `
+                <div class="actual-horse-title">
+                    🎉 完全予想結果 - プレミアム版
+                </div>
+                <div style="text-align: left; line-height: 1.8; font-size: 16px; color: #2d3436;">
+                    <div style="margin: 8px 0;"><strong>🥇 1位（本命）:</strong> <span style="color: #e17055; font-weight: bold;">${result.rankings.first}</span></div>
+                    <div style="margin: 8px 0;"><strong>🥈 2位:</strong> <span style="color: #00b894; font-weight: bold;">${result.rankings.second}</span></div>
+                    <div style="margin: 8px 0;"><strong>🥉 3位:</strong> <span style="color: #fdcb6e; font-weight: bold;">${result.rankings.third}</span></div>
+                    <div style="margin: 8px 0;"><strong>📍 4位:</strong> <span style="color: #6c5ce7; font-weight: bold;">${result.rankings.fourth}</span></div>
+                    <div style="margin: 8px 0;"><strong>📍 5位:</strong> <span style="color: #a29bfe; font-weight: bold;">${result.rankings.fifth}</span></div>
+                </div>
+                <div class="actual-horse-message" style="margin-top: 15px;">
+                    ✨ プレミアム予想完了！この順位があなたの運命の答えです
+                </div>
+            `;
+            
+            // 既存のカードを置き換え
+            actualHorseContainer.innerHTML = '';
+            actualHorseContainer.appendChild(fullRankingCard);
+            
+            // 結果までスクロール
+            fullRankingCard.scrollIntoView({ behavior: 'smooth' });
         }
     </script>
 </body>
