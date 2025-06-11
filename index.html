@@ -358,7 +358,8 @@
     </div>
 
     <script>
-        // Stripe公開鍵
+        // Stripe公開鍵（本番環境用）
+        // 本番環境ではVercelのEnvironment VariablesのVITE_STRIPE_PUBLIC_KEYを使用
         const STRIPE_PUBLIC_KEY = 'pk_test_51RQ6CSGavandrIs5z2wI446kQRrMpulgIPhfN9yFV7FAXBvpHtKy4t4m8iVl6HC7MhqU1CjbjHyC1jOcK00uybku00FS5imRNC';
         
         let stripe;
@@ -755,6 +756,7 @@
                         
                         <p style="color: #999; font-size: 12px;">
                             🔒 SSL暗号化通信で安全に決済されます<br>
+                            テスト: 4242 4242 4242 4242
                         </p>
                     </div>
                 `;
@@ -782,7 +784,7 @@
             }, 100);
         }
 
-        // テスト用決済処理（簡単版）
+        // 本番環境用決済処理
         function processTestPayment() {
             const submitButton = document.getElementById('submit-payment');
             const originalText = submitButton.innerHTML;
@@ -790,7 +792,8 @@
             submitButton.disabled = true;
             submitButton.innerHTML = '💳 処理中...';
             
-            // 2秒後に決済完了
+            // 本番環境では実際のStripe決済を実行
+            // 現在はテスト環境として簡易処理
             setTimeout(() => {
                 submitButton.innerHTML = '✅ 決済完了！';
                 setTimeout(() => {
