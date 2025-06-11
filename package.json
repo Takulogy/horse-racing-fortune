@@ -10,3 +10,19 @@
   },
   "keywords": [
     "競馬",
+    "占い",
+    "競馬予想",
+    "本命馬",
+    "宝塚記念",
+    "G1レース"
+  ],
+  "author": "Takulogy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Takulogy/horse-racing-fortune.git"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}
