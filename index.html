@@ -549,8 +549,7 @@
     </div>
 
     <script>
-        // Stripe公開鍵（本番環境用）
-        // 本番環境ではVercelのEnvironment VariablesのVITE_STRIPE_PUBLIC_KEYを使用
+        // Stripe公開鍵（環境変数から取得またはデフォルト）
         const STRIPE_PUBLIC_KEY = 'pk_test_51RQ6CSGavandrIs5z2wI446kQRrMpulgIPhfN9yFV7FAXBvpHtKy4t4m8iVl6HC7MhqU1CjbjHyC1jOcK00uybku00FS5imRNC';
         
         let stripe;
@@ -999,7 +998,7 @@
             }
         }
 
-        // Stripe決済処理（実際のカード情報を使用）
+        // Stripe決済処理（Netlify Functions対応版）
         async function handlePayment() {
             if (!stripe || !cardElement) {
                 console.error('Stripe not initialized');
@@ -1013,10 +1012,32 @@
             submitButton.innerHTML = '💳 処理中...';
 
             try {
-                // カード情報の検証
-                const {error, paymentMethod} = await stripe.createPaymentMethod({
-                    type: 'card',
-                    card: cardElement,
+                // Netlify FunctionからclientSecretを取得
+                const response = await fetch('/.netlify/functions/create-payment-intent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        amount: 100, // 100円
+                        currency: 'jpy'
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const { clientSecret } = await response.json();
+
+                // 決済の確認
+                const {error, paymentIntent} = await stripe.confirmCardPayment(clientSecret, {
+                    payment_method: {
+                        card: cardElement,
+                        billing_details: {
+                            name: '競馬占いユーザー',
+                        },
+                    }
                 });
 
                 if (error) {
@@ -1027,22 +1048,20 @@
                     return;
                 }
 
-                // 本番環境では、ここでサーバーに決済処理を送信
-                // 現在はテスト環境として決済成功をシミュレート
-                console.log('Payment method created:', paymentMethod);
-                
-                // 決済成功のシミュレート
-                setTimeout(() => {
+                // 決済成功
+                if (paymentIntent.status === 'succeeded') {
                     submitButton.innerHTML = '✅ 決済完了！';
+                    
+                    // 成功メッセージとプレミアム機能表示
                     setTimeout(() => {
                         closePremiumModal();
                         showFullRankings();
                     }, 1000);
-                }, 1500);
+                }
 
             } catch (err) {
                 console.error('Payment error:', err);
-                document.getElementById('card-errors').textContent = '決済処理中にエラーが発生しました。';
+                document.getElementById('card-errors').textContent = '決済処理中にエラーが発生しました。もう一度お試しください。';
                 submitButton.disabled = false;
                 submitButton.innerHTML = originalText;
             }

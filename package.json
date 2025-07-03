@@ -4,9 +4,9 @@
   "description": "競馬の本命馬を占うWebアプリケーション",
   "main": "index.html",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "netlify dev",
     "build": "echo 'Static site - no build required'",
-    "deploy": "vercel --prod"
+    "deploy": "netlify deploy --prod"
   },
   "keywords": [
     "競馬",
@@ -22,7 +22,10 @@
     "type": "git",
     "url": "https://github.com/Takulogy/horse-racing-fortune.git"
   },
+  "dependencies": {
+    "stripe": "^14.0.0"
+  },
   "devDependencies": {
-    "vercel": "^32.0.0"
+    "netlify-cli": "^17.0.0"
   }
 }
