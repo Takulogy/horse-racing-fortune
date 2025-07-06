@@ -1,550 +1,85 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="競馬の本命馬を占うWebアプリ。星座、血液型、レース選択で運命の馬を見つけよう！">
-    <meta name="keywords" content="競馬,占い,競馬予想,本命馬,宝塚記念,安田記念">
-    <meta property="og:title" content="🏇 競馬占い - あなたの本命馬を見つけよう！">
-    <meta property="og:description" content="星座と血液型で運命の本命馬を占います">
-    <meta property="og:type" content="website">
-    <title>🏇 競馬占い - あなたの本命馬を見つけよう！</title>
-    <!-- Stripe JavaScript SDK -->
-    <script src="https://js.stripe.com/v3/"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .app-container {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-        }
-
-        .header {
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            color: #333;
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 16px;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-            text-align: left;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        .form-group select, .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e1e1e1;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-
-        .form-group select:focus, .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .fortune-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
-            margin: 20px 0;
-        }
-
-        .fortune-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        .fortune-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .result-container {
-            display: none;
-            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
-            border-radius: 15px;
-            padding: 25px;
-            margin-top: 20px;
-            animation: slideIn 0.5s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .result-title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2d3436;
-            margin-bottom: 15px;
-        }
-
-        .horse-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 15px 0;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .horse-number {
-            font-size: 28px;
-            font-weight: bold;
-            color: #e17055;
-            margin-bottom: 10px;
-        }
-
-        .horse-name {
-            font-size: 20px;
-            font-weight: bold;
-            color: #2d3436;
-            margin-bottom: 8px;
-        }
-
-        .fortune-message {
-            color: #636e72;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .reset-btn {
-            background: #74b9ff;
-            color: white;
-            border: none;
-            padding: 10px 25px;
-            border-radius: 25px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-top: 15px;
-            transition: background 0.3s;
-        }
-
-        .reset-btn:hover {
-            background: #0984e3;
-        }
-
-        .loading {
-            display: none;
-            color: #667eea;
-            font-size: 16px;
-            margin: 20px 0;
-        }
-
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 10px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .actual-horse-card {
-            background: linear-gradient(135deg, #a8e6cf 0%, #88d8a3 100%);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 15px 0;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .actual-horse-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #2d3436;
-            margin-bottom: 10px;
-        }
-
-        .actual-horse-name {
-            font-size: 24px;
-            font-weight: bold;
-            color: #00b894;
-            margin-bottom: 8px;
-        }
-
-        .actual-horse-message {
-            color: #636e72;
-            font-size: 14px;
-        }
-
-        @media (max-width: 768px) {
-            .app-container {
-                padding: 20px;
-                margin: 10px;
-            }
-            
-            .header h1 {
-                font-size: 24px;
-            }
-            
-            .fortune-btn {
-                font-size: 16px;
-                padding: 12px 30px;
-            }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        /* Stripe Elements のスタイル */
-        .stripe-element {
-            background: white;
-            padding: 12px;
-            border: 2px solid #e1e1e1;
-            border-radius: 10px;
-            margin: 10px 0;
-            transition: border-color 0.3s;
-        }
-
-        .stripe-element.StripeElement--focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
-        }
-
-        .stripe-element.StripeElement--invalid {
-            border-color: #e74c3c;
-        }
-
-        .stripe-error {
-            color: #e74c3c;
-            font-size: 14px;
-            margin-top: 5px;
-        }
-
-        .payment-form {
-            text-align: left;
-            margin: 20px 0;
-        }
-
-        .payment-form label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        /* 表紙ページのスタイル */
-        .cover-page {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            margin: -30px;
-            border-radius: 20px;
-            padding: 30px;
-        }
-
-        .cover-content {
-            z-index: 2;
-            position: relative;
-        }
-
-        .cover-icon {
-            font-size: 80px;
-            margin-bottom: 20px;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {
-                transform: translateY(0);
-            }
-            40% {
-                transform: translateY(-10px);
-            }
-            60% {
-                transform: translateY(-5px);
-            }
-        }
-
-        .cover-title {
-            font-size: 48px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
-
-        .cover-subtitle {
-            font-size: 20px;
-            margin-bottom: 40px;
-            opacity: 0.9;
-        }
-
-        .cover-features {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-bottom: 40px;
-        }
-
-        .feature-item {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            font-size: 18px;
-            background: rgba(255,255,255,0.1);
-            padding: 12px 25px;
-            border-radius: 25px;
-            backdrop-filter: blur(10px);
-        }
-
-        .feature-icon {
-            font-size: 24px;
-        }
-
-        .start-btn {
-            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
-            color: #2d3436;
-            border: none;
-            padding: 18px 50px;
-            border-radius: 50px;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 10px 30px rgba(255, 234, 167, 0.3);
-            margin-bottom: 20px;
-        }
-
-        .start-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(255, 234, 167, 0.4);
-        }
-
-        .cover-note {
-            font-size: 14px;
-            opacity: 0.8;
-            margin-top: 10px;
-        }
-
-        .floating-elements {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .floating-element {
-            position: absolute;
-            font-size: 30px;
-            animation: float 6s ease-in-out infinite;
-            opacity: 0.7;
-        }
-
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0px) rotate(0deg);
-            }
-            50% {
-                transform: translateY(-20px) rotate(180deg);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .cover-icon {
-                font-size: 60px;
-            }
-            
-            .cover-title {
-                font-size: 36px;
-            }
-            
-            .cover-subtitle {
-                font-size: 18px;
-            }
-            
-            .start-btn {
-                font-size: 18px;
-                padding: 15px 40px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="app-container">
-        <!-- 表紙ページ -->
-        <div id="coverPage" class="cover-page">
-            <div class="cover-content">
-                <div class="cover-icon">🏇</div>
-                <h1 class="cover-title">競馬占い</h1>
-                <p class="cover-subtitle">あなたの運命の本命馬を見つけよう！</p>
+<ul>
                 
-                <div class="cover-features">
-                    <div class="feature-item">
-                        <span class="feature-icon">⭐</span>
-                        <span>星座と血液型で占う</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">🎯</span>
-                        <span>実際のレース出走馬</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">💎</span>
-                        <span>プレミアム予想¥100</span>
-                    </div>
-                </div>
-                
-                <button class="start-btn" onclick="startApp()">
-                    🔮 占いを始める
-                </button>
-                
-                <p class="cover-note">
-                    1位予想は無料！2-5位の詳細予想は¥100
-                </p>
-            </div>
-            
-            <div class="floating-elements">
-                <div class="floating-element" style="top: 10%; left: 15%; animation-delay: 0s;">🐎</div>
-                <div class="floating-element" style="top: 20%; right: 20%; animation-delay: 1s;">⭐</div>
-                <div class="floating-element" style="bottom: 30%; left: 10%; animation-delay: 2s;">🏆</div>
-                <div class="floating-element" style="bottom: 20%; right: 15%; animation-delay: 3s;">🎯</div>
-            </div>
+            </ul>
         </div>
+    </div>
 
-        <!-- メインアプリ -->
-        <div id="mainApp" style="display: none;">
-            <div class="header">
-                <h1>🏇 競馬占い</h1>
-                <p>あなたの運命の本命馬を見つけましょう！</p>
-            </div>
+    <!-- プライバシーポリシーモーダル -->
+    <div id="privacyModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('privacyModal')">&times;</button>
+            <h1>プライバシーポリシー</h1>
+            <p>最終更新日：2025年7月7日</p>
 
-        <form id="fortuneForm" action="javascript:void(0);">
-            <div class="form-group">
-                <label for="zodiac">星座を選択してください</label>
-                <select id="zodiac" required>
-                    <option value="">選択してください</option>
-                    <option value="aries">牡羊座 (3/21-4/19)</option>
-                    <option value="taurus">牡牛座 (4/20-5/20)</option>
-                    <option value="gemini">双子座 (5/21-6/21)</option>
-                    <option value="cancer">蟹座 (6/22-7/22)</option>
-                    <option value="leo">獅子座 (7/23-8/22)</option>
-                    <option value="virgo">乙女座 (8/23-9/22)</option>
-                    <option value="libra">天秤座 (9/23-10/23)</option>
-                    <option value="scorpio">蠍座 (10/24-11/22)</option>
-                    <option value="sagittarius">射手座 (11/23-12/21)</option>
-                    <option value="capricorn">山羊座 (12/22-1/19)</option>
-                    <option value="aquarius">水瓶座 (1/20-2/18)</option>
-                    <option value="pisces">魚座 (2/19-3/20)</option>
-                </select>
-            </div>
+            <h2>1. 基本方針</h2>
+            <p>競馬占いサービス（以下「本サービス」）では、利用者の個人情報の保護を重要な責務と考え、個人情報保護法及び関連法令を遵守し、適切な取扱いに努めます。</p>
 
-            <div class="form-group">
-                <label for="bloodType">血液型を選択してください</label>
-                <select id="bloodType" required>
-                    <option value="">選択してください</option>
-                    <option value="A">A型</option>
-                    <option value="B">B型</option>
-                    <option value="O">O型</option>
-                    <option value="AB">AB型</option>
-                </select>
-            </div>
+            <h2>2. 取得する情報</h2>
+            <h3>2.1 利用者が入力する情報</h3>
+            <ul>
+                <li>星座、血液型、ラッキーナンバー等の占い入力情報</li>
+                <li>決済に必要なクレジットカード情報（Stripe社経由）</li>
+            </ul>
 
-            <div class="form-group">
-                <label for="targetRace">あなたの今回×競馬は何ですか？</label>
-                <select id="targetRace" required>
-                    <option value="">選択してください</option>
-                    <option value="takarazuka">宝塚記念 (6/15 阪神)</option>
-                    <option value="yasuda">安田記念 (6/8 東京) ※終了</option>
-                    <option value="derby">日本ダービー (6/1 東京) ※終了</option>
-                    <option value="oaks">オークス (5/25 東京) ※終了</option>
-                    <option value="victoria">ヴィクトリアマイル (5/11 東京) ※終了</option>
-                    <option value="tennosho_spring">天皇賞(春) (4/27 京都) ※終了</option>
-                    <option value="oka_sho">桜花賞 (4/6 阪神) ※終了</option>
-                    <option value="satsuki_sho">皐月賞 (4/13 中山) ※終了</option>
-                </select>
-            </div>
+            <h3>2.2 自動的に取得される情報</h3>
+            <ul>
+                <li>IPアドレス</li>
+                <li>ブラウザの種類・バージョン</li>
+                <li>アクセス日時</li>
+                <li>利用環境に関する情報</li>
+            </ul>
 
-            <div class="form-group">
-                <label for="luckyNumber">今日のラッキーナンバー (1-18)</label>
-                <input type="number" id="luckyNumber" min="1" max="18" required placeholder="1から18の数字を入力">
-            </div>
+            <h2>3. 情報の利用目的</h2>
+            <p>取得した個人情報は、以下の目的で利用します：</p>
+            <ol>
+                <li>本サービスの提供・運営</li>
+                <li>決済処理の実行</li>
+                <li>カスタマーサポートの提供</li>
+                <li>サービスの改善・開発</li>
+                <li>不正利用の防止・セキュリティ確保</li>
+            </ol>
 
-            <button type="button" class="fortune-btn" onclick="startFortune()">🔮 本命馬を占う</button>
-        </form>
-
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            運命の馬を探索中...
+            <h2>11. お問い合わせ</h2>
+            <p>個人情報の取扱いに関するお問い合わせは、以下までご連絡ください：</p>
+            <ul>
+                <li><strong>メール</strong>：gmmgmmgmmu@gmail.com</li>
+                <li><strong>運営者</strong>：本田拓也</li>
+                <li><strong>住所</strong>：〒124-0011 東京都葛飾区四つ木2-6-25-213 アイリス四つ木</li>
+                <li><strong>対応時間</strong>：平日10:00-18:00</li>
+            </ul>
         </div>
+    </div>
 
-        <div class="result-container" id="result">
-            <div class="result-title">🎯 あなたの本命はこちら！</div>
-            <div class="horse-card" id="horseCard">
-                <div class="horse-number" id="horseNumber"></div>
-                <div class="horse-name" id="horseName"></div>
-                <div class="fortune-message" id="fortuneMessage"></div>
-            </div>
-            <div id="actualHorseContainer"></div>
-            <button class="reset-btn" onclick="resetForm()">もう一度占う</button>
+    <!-- 特定商取引法モーダル -->
+    <div id="legalModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('legalModal')">&times;</button>
+            <h1>特定商取引法に基づく表記</h1>
+
+            <h2>販売事業者</h2>
+            <p><strong>事業者名：</strong> 本田拓也<br>
+            <strong>代表者：</strong> 本田拓也<br>
+            <strong>住所：</strong> 〒124-0011 東京都葛飾区四つ木2-6-25-213 アイリス四つ木<br>
+            <strong>電話番号：</strong> 080-6366-4272<br>
+            <strong>メールアドレス：</strong> gmmgmmgmmu@gmail.com</p>
+
+            <h2>サービス内容</h2>
+            <p><strong>商品名：</strong> 競馬占いプレミアム予想<br>
+            <strong>商品内容：</strong> 星座・血液型に基づく競馬予想（2位～5位の詳細予想）<br>
+            <strong>提供方法：</strong> デジタルコンテンツ（Webブラウザでの表示）</p>
+
+            <h2>料金</h2>
+            <p><strong>販売価格：</strong> 100円（税込）<br>
+            <strong>支払方法：</strong> クレジットカード決済（Stripe）<br>
+            <strong>支払時期：</strong> 商品購入時の前払い</p>
+
+            <h2>お問い合わせ</h2>
+            <p>上記内容に関するお問い合わせは、以下までご連絡ください：</p>
+            <ul>
+                <li><strong>メール：</strong> gmmgmmgmmu@gmail.com</li>
+                <li><strong>電話：</strong> 080-6366-4272</li>
+                <li><strong>対応時間：</strong> 平日10:00-18:00</li>
+            </ul>
         </div>
     </div>
 
@@ -699,6 +234,28 @@
 
         // ページ読み込み時にStripe初期化
         window.addEventListener('load', initializeStripe);
+
+        // モーダル関連の関数
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // モーダル外クリックで閉じる
+        window.onclick = function(event) {
+            const modals = ['termsModal', 'privacyModal', 'legalModal'];
+            modals.forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (event.target === modal) {
+                    closeModal(modalId);
+                }
+            });
+        }
 
         // 表紙からメインアプリへの移行
         function startApp() {
@@ -1105,4 +662,802 @@
         }
     </script>
 </body>
-</html>
+</html> <!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="競馬の本命馬を占うWebアプリ。星座、血液型、レース選択で運命の馬を見つけよう！">
+    <meta name="keywords" content="競馬,占い,競馬予想,本命馬,宝塚記念,安田記念">
+    <meta property="og:title" content="🏇 競馬占い - あなたの本命馬を見つけよう！">
+    <meta property="og:description" content="星座と血液型で運命の本命馬を占います">
+    <meta property="og:type" content="website">
+    <title>🏇 競馬占い - あなたの本命馬を見つけよう！</title>
+    <!-- Stripe JavaScript SDK -->
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 20px 80px 20px; /* フッター分の余白追加 */
+        }
+
+        .app-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group select:focus, .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .fortune-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin: 20px 0;
+        }
+
+        .fortune-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .fortune-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-container {
+            display: none;
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2d3436;
+            margin-bottom: 15px;
+        }
+
+        .horse-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .horse-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #e17055;
+            margin-bottom: 10px;
+        }
+
+        .horse-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2d3436;
+            margin-bottom: 8px;
+        }
+
+        .fortune-message {
+            color: #636e72;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .reset-btn {
+            background: #74b9ff;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .reset-btn:hover {
+            background: #0984e3;
+        }
+
+        .loading {
+            display: none;
+            color: #667eea;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .actual-horse-card {
+            background: linear-gradient(135deg, #a8e6cf 0%, #88d8a3 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .actual-horse-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2d3436;
+            margin-bottom: 10px;
+        }
+
+        .actual-horse-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00b894;
+            margin-bottom: 8px;
+        }
+
+        .actual-horse-message {
+            color: #636e72;
+            font-size: 14px;
+        }
+
+        /* Stripe Elements のスタイル */
+        .stripe-element {
+            background: white;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 10px;
+            margin: 10px 0;
+            transition: border-color 0.3s;
+        }
+
+        .stripe-element.StripeElement--focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .stripe-element.StripeElement--invalid {
+            border-color: #e74c3c;
+        }
+
+        .stripe-error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .payment-form {
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        .payment-form label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* 表紙ページのスタイル */
+        .cover-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: -30px;
+            border-radius: 20px;
+            padding: 30px;
+        }
+
+        .cover-content {
+            z-index: 2;
+            position: relative;
+        }
+
+        .cover-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .cover-title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .cover-subtitle {
+            font-size: 20px;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+
+        .cover-features {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 18px;
+            background: rgba(255,255,255,0.1);
+            padding: 12px 25px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .feature-icon {
+            font-size: 24px;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            color: #2d3436;
+            border: none;
+            padding: 18px 50px;
+            border-radius: 50px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(255, 234, 167, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(255, 234, 167, 0.4);
+        }
+
+        .cover-note {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+
+        .floating-elements {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .floating-element {
+            position: absolute;
+            font-size: 30px;
+            animation: float 6s ease-in-out infinite;
+            opacity: 0.7;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(180deg);
+            }
+        }
+
+        /* フッターのスタイル */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .footer-links a {
+            color: #ffeaa7;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .footer-links a:hover {
+            background: rgba(255, 234, 167, 0.2);
+            border-color: rgba(255, 234, 167, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .footer-info {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .fortune-btn {
+                font-size: 16px;
+                padding: 12px 30px;
+            }
+
+            .cover-icon {
+                font-size: 60px;
+            }
+            
+            .cover-title {
+                font-size: 36px;
+            }
+            
+            .cover-subtitle {
+                font-size: 18px;
+            }
+            
+            .start-btn {
+                font-size: 18px;
+                padding: 15px 40px;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .footer-links {
+                gap: 10px;
+            }
+
+            .footer-links a {
+                font-size: 12px;
+                padding: 3px 8px;
+            }
+
+            body {
+                padding-bottom: 100px;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* モーダル用のスタイル追加 */
+        #termsModal, #privacyModal, #legalModal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 2% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .modal-content h1 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .modal-content h2 {
+            color: #555;
+            margin: 25px 0 15px 0;
+            font-size: 20px;
+        }
+
+        .modal-content h3 {
+            color: #666;
+            margin: 20px 0 10px 0;
+            font-size: 18px;
+        }
+
+        .modal-content p, .modal-content li {
+            line-height: 1.6;
+            margin-bottom: 10px;
+            color: #444;
+        }
+
+        .modal-content ul, .modal-content ol {
+            margin: 10px 0 10px 20px;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: none;
+            border: none;
+            font-size: 30px;
+            cursor: pointer;
+            color: #999;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .close-modal:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 表紙ページ -->
+        <div id="coverPage" class="cover-page">
+            <div class="cover-content">
+                <div class="cover-icon">🏇</div>
+                <h1 class="cover-title">競馬占い</h1>
+                <p class="cover-subtitle">あなたの運命の本命馬を見つけよう！</p>
+                
+                <div class="cover-features">
+                    <div class="feature-item">
+                        <span class="feature-icon">⭐</span>
+                        <span>星座と血液型で占う</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🎯</span>
+                        <span>実際のレース出走馬</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">💎</span>
+                        <span>プレミアム予想¥100</span>
+                    </div>
+                </div>
+                
+                <button class="start-btn" onclick="startApp()">
+                    🔮 占いを始める
+                </button>
+                
+                <p class="cover-note">
+                    1位予想は無料！2-5位の詳細予想は¥100
+                </p>
+            </div>
+            
+            <div class="floating-elements">
+                <div class="floating-element" style="top: 10%; left: 15%; animation-delay: 0s;">🐎</div>
+                <div class="floating-element" style="top: 20%; right: 20%; animation-delay: 1s;">⭐</div>
+                <div class="floating-element" style="bottom: 30%; left: 10%; animation-delay: 2s;">🏆</div>
+                <div class="floating-element" style="bottom: 20%; right: 15%; animation-delay: 3s;">🎯</div>
+            </div>
+        </div>
+
+        <!-- メインアプリ -->
+        <div id="mainApp" style="display: none;">
+            <div class="header">
+                <h1>🏇 競馬占い</h1>
+                <p>あなたの運命の本命馬を見つけましょう！</p>
+            </div>
+
+            <form id="fortuneForm" action="javascript:void(0);">
+                <div class="form-group">
+                    <label for="zodiac">星座を選択してください</label>
+                    <select id="zodiac" required>
+                        <option value="">選択してください</option>
+                        <option value="aries">牡羊座 (3/21-4/19)</option>
+                        <option value="taurus">牡牛座 (4/20-5/20)</option>
+                        <option value="gemini">双子座 (5/21-6/21)</option>
+                        <option value="cancer">蟹座 (6/22-7/22)</option>
+                        <option value="leo">獅子座 (7/23-8/22)</option>
+                        <option value="virgo">乙女座 (8/23-9/22)</option>
+                        <option value="libra">天秤座 (9/23-10/23)</option>
+                        <option value="scorpio">蠍座 (10/24-11/22)</option>
+                        <option value="sagittarius">射手座 (11/23-12/21)</option>
+                        <option value="capricorn">山羊座 (12/22-1/19)</option>
+                        <option value="aquarius">水瓶座 (1/20-2/18)</option>
+                        <option value="pisces">魚座 (2/19-3/20)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="bloodType">血液型を選択してください</label>
+                    <select id="bloodType" required>
+                        <option value="">選択してください</option>
+                        <option value="A">A型</option>
+                        <option value="B">B型</option>
+                        <option value="O">O型</option>
+                        <option value="AB">AB型</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="targetRace">あなたの今回×競馬は何ですか？</label>
+                    <select id="targetRace" required>
+                        <option value="">選択してください</option>
+                        <option value="takarazuka">宝塚記念 (6/15 阪神)</option>
+                        <option value="yasuda">安田記念 (6/8 東京) ※終了</option>
+                        <option value="derby">日本ダービー (6/1 東京) ※終了</option>
+                        <option value="oaks">オークス (5/25 東京) ※終了</option>
+                        <option value="victoria">ヴィクトリアマイル (5/11 東京) ※終了</option>
+                        <option value="tennosho_spring">天皇賞(春) (4/27 京都) ※終了</option>
+                        <option value="oka_sho">桜花賞 (4/6 阪神) ※終了</option>
+                        <option value="satsuki_sho">皐月賞 (4/13 中山) ※終了</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="luckyNumber">今日のラッキーナンバー (1-18)</label>
+                    <input type="number" id="luckyNumber" min="1" max="18" required placeholder="1から18の数字を入力">
+                </div>
+
+                <button type="button" class="fortune-btn" onclick="startFortune()">🔮 本命馬を占う</button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                運命の馬を探索中...
+            </div>
+
+            <div class="result-container" id="result">
+                <div class="result-title">🎯 あなたの本命はこちら！</div>
+                <div class="horse-card" id="horseCard">
+                    <div class="horse-number" id="horseNumber"></div>
+                    <div class="horse-name" id="horseName"></div>
+                    <div class="fortune-message" id="fortuneMessage"></div>
+                </div>
+                <div id="actualHorseContainer"></div>
+                <button class="reset-btn" onclick="resetForm()">もう一度占う</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- フッター -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="javascript:void(0)" onclick="openModal('termsModal')">利用規約</a>
+                <a href="javascript:void(0)" onclick="openModal('privacyModal')">プライバシーポリシー</a>
+                <a href="javascript:void(0)" onclick="openModal('legalModal')">特定商取引法</a>
+                <a href="mailto:gmmgmmgmmu@gmail.com">お問い合わせ</a>
+            </div>
+            <div class="footer-info">
+                © 2025 競馬占いAIアプリ. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- 利用規約モーダル -->
+    <div id="termsModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('termsModal')">&times;</button>
+            <h1>利用規約</h1>
+            <p>最終更新日：2025年7月7日</p>
+            
+            <h2>第1条（適用）</h2>
+            <ol>
+                <li>この利用規約（以下「本規約」）は、競馬占いサービス（以下「本サービス」）の利用条件を定めるものです。</li>
+                <li>利用者は、本サービスを利用することで、本規約に同意したものとみなされます。</li>
+            </ol>
+
+            <h2>第2条（サービス内容）</h2>
+            <ol>
+                <li>本サービスは、星座・血液型・ラッキーナンバーを基にした競馬予想占いサービスです。</li>
+                <li>基本機能（1位予想）は無料で提供されます。</li>
+                <li>プレミアム機能（2-5位予想）は有料（100円）で提供されます。</li>
+            </ol>
+
+            <h2>第3条（利用料金・決済）</h2>
+            <ol>
+                <li>プレミアム機能の利用料金は100円（税込）です。</li>
+                <li>決済はStripe社の決済システムを利用します。</li>
+                <li>決済完了後、即座にプレミアム機能をご利用いただけます。</li>
+                <li>料金は事前決済制とし、後払いは承っておりません。</li>
+            </ol>
+
+            <h2>第4条（免責事項）</h2>
+            <ol>
+                <li>本サービスは占い・エンターテイメント目的であり、実際の競馬の結果を保証するものではありません。</li>
+                <li>本サービスの予想結果による損失について、運営者は一切の責任を負いません。</li>
+                <li>競馬投票は自己責任で行ってください。</li>
+                <li>システム障害等により一時的にサービスが利用できない場合があります。</li>
+            </ol>
+
+            <h2>第5条（返金・キャンセル）</h2>
+            <ol>
+                <li>デジタルコンテンツの性質上、決済完了後の返金・キャンセルは原則として承っておりません。</li>
+                <li>ただし、以下の場合に限り返金を検討いたします：
+                    <ul>
+                        <li>システム障害によりプレミアム機能が提供されなかった場合</li>
+                        <li>重複決済が発生した場合</li>
+                    </ul>
+                </li>
+                <li>返金をご希望の場合は、お問い合わせフォームよりご連絡ください。</li>
+            </ol>
+
+            <h2>第6条（禁止事項）</h2>
+            <p>利用者は以下の行為を行ってはなりません：</p>
+            <ol>
+                <li>本サービスの運営を妨害する行為</li>
+                <li>第三者になりすます行為</li>
+                <li>法令に違反する行為</li>
+                <li>その他、運営者が不適切と判断する行為</li>
+            </ol>
+
+            <h2>第7条（サービスの変更・停止）</h2>
+            <ol>
+                <li>運営者は、事前の通知なくサービス内容を変更することがあります。</li>
+                <li>運営者は、必要に応じてサービスを一時停止または終了することがあります。</li>
+            </ol>
+
+            <h2>第8条（個人情報の取扱い）</h2>
+            <p>個人情報の取扱いについては、別途定めるプライバシーポリシーに従います。</p>
+
+            <h2>第9条（規約の変更）</h2>
+            <ol>
+                <li>運営者は、必要に応じて本規約を変更することがあります。</li>
+                <li>変更後の規約は、本サイトに掲載した時点で効力を生じます。</li>
+            </ol>
+
+            <h2>第10条（準拠法・裁判管轄）</h2>
+            <ol>
+                <li>本規約は日本法に準拠して解釈されます。</li>
+                <li>本サービスに関する紛争については、東京地方裁判所を第一審の専属的合意管轄裁判所とします。</li>
+            </ol>
+
+            <h2>お問い合わせ</h2>
+            <p>本規約に関するお問い合わせは、以下までご連絡ください。</p>
+            <ul>
+                <li><strong>メール</strong>：gmmgmmgmmu@gmail.com</li>
+                <li
